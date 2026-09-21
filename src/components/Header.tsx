@@ -1,66 +1,161 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, User, Globe, Check, ChevronDown } from "lucide-react";
+import logo from "../assets/kohali-logo.png";
 import {
   NotificationDropdown,
   type Notification,
 } from "./NotificationDropdown";
-import logo from "../assets/kohali-logo.png";
 
-const notifications: Notification[] = [
-  {
-    id: "1",
-    title: "Annual General Meeting 2024",
-    description:
-      "Join us for the AGM to review yearly progress and vote on upcoming samaj initiatives.",
-    date: "24 Oct, 10:00 AM",
-    category: "notice",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "Diwali Milan Samaroh — Live Now",
-    description:
-      "The community Diwali gathering has started. Tap to join the live stream.",
-    date: "Today, 6:30 PM",
-    category: "live",
-    read: false,
-  },
-  {
-    id: "3",
-    title: "Scholarship Applications Open",
-    description:
-      "Applications for the 2024–25 student scholarship program are now open for members.",
-    date: "20 Oct, 9:00 AM",
-    category: "announcement",
-    read: false,
-  },
-  {
-    id: "4",
-    title: "Reminder: Blood Donation Camp",
-    description:
-      "The samaj blood donation camp begins tomorrow morning at the community hall.",
-    date: "Tomorrow, 8:00 AM",
-    category: "reminder",
-    read: true,
-  },
-  {
-    id: "5",
-    title: "App Update: Faster Directory Search",
-    description:
-      "We've improved search speed and added filters to the business directory.",
-    date: "18 Oct, 4:15 PM",
-    category: "update",
-    read: true,
-  },
-];
+
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [langOpen, setLangOpen] = useState(false);
-  const [lang, setLang] = useState<"mr" | "en">("mr");
+  const API_PATH =window.location.hostname === "localhost" ||window.location.hostname === "192.168.1.62"? import.meta.env.VITE_LOCAL_API_PATH: import.meta.env.VITE_LIVE_API_PATH;
+  const [lang, setLang] = useState<"mr" | "en">(
+  (localStorage.getItem("language") as "mr" | "en") || "mr"
+);
 
+ const changeGoogleLanguage = (language: "mr" | "en") => {
+  setLang(language);
+
+  localStorage.setItem("language", language);
+
+  const applyLanguage = () => {
+    const googleSelect = document.querySelector(
+      ".goog-te-combo"
+    ) as HTMLSelectElement | null;
+
+    if (!googleSelect) {
+      return false;
+    }
+
+    googleSelect.value = language;
+    googleSelect.dispatchEvent(new Event("change"));
+
+    return true;
+  };
+
+  if (applyLanguage()) {
+    return;
+  }
+
+  setTimeout(() => {
+    applyLanguage();
+  }, 300);
+
+  setTimeout(() => {
+    applyLanguage();
+  }, 800);
+
+  setTimeout(() => {
+    applyLanguage();
+  }, 1500);
+};
+
+  useEffect(() => {
+  const savedLanguage = localStorage.getItem("language") as
+    | "mr"
+    | "en"
+    | null;
+
+  if (!savedLanguage || savedLanguage === "mr") {
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    const googleSelect = document.querySelector(
+      ".goog-te-combo"
+    ) as HTMLSelectElement | null;
+
+    if (googleSelect) {
+      googleSelect.value = savedLanguage;
+      googleSelect.dispatchEvent(new Event("change"));
+    }
+  }, 1000);
+
+  return () => clearTimeout(timer);
+}, []);
+useEffect(() => {
+  fetchNotifications();
+}, []);
+
+const fetchNotifications = async () => {
+  try {
+    const mobileUser = JSON.parse(
+      localStorage.getItem("mobile_user") || "{}"
+    );
+
+    if (!mobileUser?.id) return;
+
+    const response = await fetch(
+      `${API_PATH}/action_layer.php`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        credentials: "include",
+        body: new URLSearchParams({
+          action: "get_notifications",
+          user_id: String(mobileUser.id),
+        }).toString(),
+      }
+    );
+
+    const data = await response.json();
+
+    if (data.status) {
+      setNotifications(data.notifications || []);
+    }
+  } catch (error) {
+    console.error("Notification error:", error);
+  }
+};
+
+
+const readNotification = async (notificationId: string) => {
+  try {
+    const mobileUser = JSON.parse(
+      localStorage.getItem("mobile_user") || "{}"
+    );
+
+    if (!mobileUser?.id) return;
+
+    const response = await fetch(`${API_PATH}/action_layer.php`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      credentials: "include",
+      body: new URLSearchParams({
+        action: "read_notification",
+        notification_id: notificationId,
+        user_id: String(mobileUser.id),
+      }).toString(),
+    });
+
+    const data = await response.json();
+
+    if (!data.status) {
+      console.error("Notification read failed:", data.message);
+      return;
+    }
+
+    // UI se immediately remove
+    setNotifications((prev) =>
+      prev.filter(
+        (notification) => notification.id !== notificationId
+      )
+    );
+
+  } catch (error) {
+    console.error("Read notification error:", error);
+  }
+};
   const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   return (
@@ -114,11 +209,10 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 }}
                 aria-label="Change language"
                 aria-expanded={langOpen}
-                className={`flex h-9 items-center gap-1 rounded-full border px-2 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-500)]/60 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--cream)] active:scale-[0.94] active:duration-75 xs:h-10 sm:px-2.5 md:h-11 md:px-3 ${
-                  langOpen
+                className={`flex h-9 items-center gap-1 rounded-full border px-2 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-500)]/60 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--cream)] active:scale-[0.94] active:duration-75 xs:h-10 sm:px-2.5 md:h-11 md:px-3 ${langOpen
                     ? "border-[var(--gold-500)]/60 bg-[var(--gold-300)]/55 text-[var(--maroon-900)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]"
                     : "border-[var(--gold-500)]/25 bg-[var(--gold-100)] text-[var(--maroon-800)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[var(--gold-500)]/40 hover:bg-[var(--gold-300)]/45 hover:shadow-[0_2px_6px_-2px_rgba(90,15,20,0.18)]"
-                }`}
+                  }`}
               >
                 <Globe strokeWidth={2.2} className="h-3.5 w-3.5 xs:h-4 xs:w-4 md:h-[18px] md:w-[18px]" />
 
@@ -127,9 +221,8 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 </span>
 
                 <ChevronDown
-                  className={`h-3 w-3 transition-transform duration-200 ease-out md:h-3.5 md:w-3.5 ${
-                    langOpen ? "rotate-180" : ""
-                  }`}
+                  className={`h-3 w-3 transition-transform duration-200 ease-out md:h-3.5 md:w-3.5 ${langOpen ? "rotate-180" : ""
+                    }`}
                 />
               </button>
 
@@ -155,14 +248,13 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                         key={option.code}
                         type="button"
                         onClick={() => {
-                          setLang(option.code);
+                          changeGoogleLanguage(option.code);
                           setLangOpen(false);
                         }}
-                        className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[12px] font-bold transition-colors duration-150 md:px-3 md:py-2.5 md:text-[13px] ${
-                          lang === option.code
+                        className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[12px] font-bold transition-colors duration-150 md:px-3 md:py-2.5 md:text-[13px] ${lang === option.code
                             ? "bg-[var(--gold-100)] text-[var(--maroon-800)]"
                             : "text-[var(--ink)] hover:bg-[var(--cream)]"
-                        }`}
+                          }`}
                       >
                         {option.label}
 
@@ -188,11 +280,10 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 }}
                 aria-label="Notifications"
                 aria-expanded={notifOpen}
-                className={`relative grid h-9 w-9 place-items-center rounded-full border transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-500)]/60 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--cream)] active:scale-[0.94] active:duration-75 xs:h-10 xs:w-10 md:h-11 md:w-11 ${
-                  notifOpen
+                className={`relative grid h-9 w-9 place-items-center rounded-full border transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-500)]/60 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--cream)] active:scale-[0.94] active:duration-75 xs:h-10 xs:w-10 md:h-11 md:w-11 ${notifOpen
                     ? "border-[var(--gold-500)]/60 bg-[var(--gold-300)]/55 text-[var(--maroon-900)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]"
                     : "border-[var(--gold-500)]/25 bg-[var(--gold-100)] text-[var(--maroon-800)] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[var(--gold-500)]/40 hover:bg-[var(--gold-300)]/45 hover:shadow-[0_2px_6px_-2px_rgba(90,15,20,0.18)]"
-                }`}
+                  }`}
               >
                 <Bell strokeWidth={2.2} className="h-4 w-4 xs:h-[18px] xs:w-[18px] md:h-5 md:w-5" />
 
@@ -207,6 +298,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 open={notifOpen}
                 notifications={notifications}
                 onClose={() => setNotifOpen(false)}
+                onMarkRead={readNotification}
               />
             </div>
 
