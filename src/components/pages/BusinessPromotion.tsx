@@ -17,7 +17,7 @@ import {
   Link2,
   Image as ImageIcon,
   Video,
-  Layers,
+  // Layers,
   Send,
   CheckCircle2,
   ShieldCheck,
@@ -145,11 +145,11 @@ const AD_TYPES: AdType[] = [
     label: "Video",
     Icon: Video,
   },
-  {
-    key: "both",
-    label: "Poster + Video",
-    Icon: Layers,
-  },
+  // {
+  //   key: "both",
+  //   label: "Poster + Video",
+  //   Icon: Layers,
+  // },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -402,7 +402,9 @@ export default function BusinessPromotion() {
       "business_location",
       "business_address",
       "website",
-      "social_media_links",
+      "instagram",
+      "facebook",
+      "youtube",
       "advertisement_title",
       "advertisement_description",
     ];
@@ -669,10 +671,23 @@ export default function BusinessPromotion() {
             {/* Social Media */}
             <Field
               Icon={Link2}
-              label="Social Media Links"
-              placeholder="Instagram / Facebook profile links"
-              colSpan
-              name="social_media_links"
+              label="Instagram Link"
+              placeholder="Instagram profile links"
+              name="instagram"
+            />
+
+            <Field
+              Icon={Link2}
+              label="Facebook Link"
+              placeholder="Facebook profile links"
+              name="facebook"
+            />
+
+            <Field
+              Icon={Link2}
+              label="Youtube Link"
+              placeholder="Youtube profile links"
+              name="youtube"
             />
 
           </div>
